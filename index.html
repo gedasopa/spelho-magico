@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Espelho Mágico das Emoções</title>
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+  <style>
+    body { text-align: center; font-family: "Comic Sans MS", cursive; transition: background-color 1s; margin: 0; padding: 0; background-color: #f0f8ff; }
+    h1 { margin-top: 20px; color: #333; }
+    video, canvas { border: 5px solid #444; border-radius: 20px; margin-top: 10px; }
+    #mensagem { margin-top: 20px; font-size: 28px; font-weight: bold; color: #333; padding: 20px; transition: color 1s; }
+    #botao-tentar { display: none; margin: 15px auto; font-size: 20px; padding: 10px 20px; border-radius: 10px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>🌟 Espelho Mágico das Emoções 🌟</h1>
+  <video id="video" width="640" height="480" autoplay muted></video>
+  <div id="mensagem">Carregando magia...</div>
+  <button id="botao-tentar">🔄 Tentar de novo</button>
+
+  <audio id="somTentar" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg"></audio>
+
+  <script>
+    const video = document.getElementById('video');
+    const mensagem = document.getElementById('mensagem');
+    const botao = document.getElementById('botao-tentar');
+    const som = document.getElementById('somTentar');
+    let ultimaEmocao = "";
+
+    async function pedirCamera() {
+      mensagem.innerText = "🔒 Solicitando acesso à câmera...";
+      botao.style.display = 'none';
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+        mensagem.innerText = "🎥 Câmera ativada! Sorria :)";
+        iniciarDeteccao();
+      } catch {
+        mensagem.innerText = "Ops! Câmera bloqueada ou negada. Clique no botão para tentar novamente 😊";
+        botao.style.display = 'block';
+      }
+    }
+
+    botao.addEventListener('click', async () => {
+      som.currentTime = 0;
+      som.play();
+      await pedirCamera();
+    });
+
+    async function iniciarDeteccao() {
+      const MODEL_URL = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/models';
+      await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+      await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);
+      botao.style.display = 'none';
+
+      const canvas = faceapi.createCanvasFromMedia(video);
+      document.body.append(canvas);
+      const size = { width: video.width, height: video.height };
+      faceapi.matchDimensions(canvas, size);
+
+      setInterval(async () => {
+        const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceExpressions();
+        canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+
+        if (!detections.length) return;
+        const exp = detections[0].expressions;
+        const emot = Object.entries(exp).sort((a, b) => b[1] - a[1])[0][0];
+
+        if (emot !== ultimaEmocao) {
+          const textos = {
+            happy: ["Você está radiante! 🌞","#FFF9C4"],
+            sad: ["Tudo bem ficar triste às vezes. 💙","#BBDEFB"],
+            angry: ["Respira fundo! 😠","#FFCDD2"],
+            surprised: ["Uau! Que surpresa foi essa? 😲","#E1BEE7"],
+            neutral: ["Dia tranquilo por aí? 😌","#E0E0E0"],
+            fearful: ["Vai dar tudo certo! 😨","#B2EBF2"],
+            disgusted: ["Eca! Que nojo! 😖","#DCEDC8"]
+          };
+          const [text, cor] = textos[emot] || ["Oi! 😊", "#FFFFFF"];
+          mensagem.innerText = text;
+          document.body.style.backgroundColor = cor;
+          ultimaEmocao = emot;
+        }
+      }, 3000);
+    }
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      mensagem.innerText = "🚫 Seu navegador não suporta acesso à câmera.";
+    } else {
+      pedirCamera();
+    }
+  </script>
+</body>
+</html>
